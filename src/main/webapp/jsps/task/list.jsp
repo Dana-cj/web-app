@@ -41,7 +41,13 @@
             <td class="table-danger"><c:out value = "${task.formattedDueDate}"/></td>
             <td><c:out value = "${task.priority}"/></td>
             <td><c:out value = "${task.status}"/></td>
-            <td><c:out value = "${task.files[0].name}"/></td>
+            <td>
+             <c:forEach items="${task.files}" var="file">
+                <a href="/new-web-app/tasks?action=download&fileName=<c:out value = "${file.name}"/>">
+                    <p><i class="bi bi-file-earmark"></i><c:out value = "${file.name}"/></p>
+                </a>
+             </c:forEach>
+            </td>
 
             <td>
                 <a href="/new-web-app/tasks?action=edit&taskId=<c:out value = "${task.id}"/>">

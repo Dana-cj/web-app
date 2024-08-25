@@ -18,6 +18,7 @@ import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.sql.DataSource;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Serial;
@@ -107,8 +108,45 @@ public class TasksServlet extends HttpServlet {
                 request.setAttribute("dueDateSortingActive", "active");
                 listTasksSortedByDueDate(request, response);
             }
+            case "download"-> {
+                String fileName = request.getParameter("fileName");
+                //response.getWriter().print(fileName);
+
+                // Get the file name from the request
+//                String fileName = request.getParameter("fileName");
+//                if (fileName == null || fileName.isEmpty()) {
+//                    response.getWriter().print("File name is empty");
+//                    return;
+//                }
+
+                // Get the upload directory path
+                String filePath = UPLOAD_PATH + fileName;
+                java.io.File downloadFile = new java.io.File(filePath);
+
+                // Check if file exists
+                if (!downloadFile.exists()) {
+                    response.getWriter().print("File not found");
+                    return;
+                }
+
+                // Set response content type
+                response.setContentType("application/octet-stream");
+                response.setContentLength((int) downloadFile.length());
+                response.setHeader("Content-Disposition", "attachment;filename=\"" + fileName + "\"");
+
+                // Write file content to response
+                try (FileInputStream inStream = new FileInputStream(downloadFile)) {
+                    byte[] buffer = new byte[4096];
+                    int bytesRead = -1;
+
+                    while ((bytesRead = inStream.read(buffer)) != -1) {
+                        response.getOutputStream().write(buffer, 0, bytesRead);
+                    }
+                }
+            }
         }
     }
+
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         request.setAttribute("tasksActive", "active");

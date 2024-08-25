@@ -86,25 +86,12 @@ public class TaskService {
 
        public Task findTaskById(int id) {
         Task task=null;
-        List<File> files = new ArrayList<>();
+        List<File> files =  findFilesByTaskId(id);;
         try {
             PreparedStatement statement1 = dbConnection.prepareStatement("select * from tasks where id = ?");
             statement1.setInt(1, id);
             ResultSet result = statement1.executeQuery();
             result.next();
-
-            PreparedStatement statement2 = dbConnection.prepareStatement("select * from files where task_id = ?");
-            statement2.setInt(1, id);
-            ResultSet results = statement2.executeQuery();
-
-            while (results.next()) {
-                files.add(
-                        new File(results.getInt(1),
-                                results.getInt(2),
-                                results.getString(3),
-                                results.getString(4)
-                        ));
-            }
 
             GregorianCalendar date1= new GregorianCalendar();
             java.util.Date myDate1= new java.util.Date(result.getDate(3).getTime());
@@ -127,6 +114,27 @@ public class TaskService {
             e.printStackTrace(System.err);
         }
         return task;
+    }
+
+    private List<File> findFilesByTaskId(int id) {
+        List<File> files = new ArrayList<>();
+        try {
+            PreparedStatement statement2 = dbConnection.prepareStatement("select * from files where task_id = ?");
+            statement2.setInt(1, id);
+            ResultSet results = statement2.executeQuery();
+
+            while (results.next()) {
+                files.add(
+                        new File(results.getInt(1),
+                                results.getInt(2),
+                                results.getString(3),
+                                results.getString(4)
+                        ));
+            }
+        } catch (SQLException e){
+            e.printStackTrace(System.err);
+        }
+        return files;
     }
 
 
@@ -179,12 +187,36 @@ public class TaskService {
             throw new RuntimeException(e);
         }
     }
+
+ //   public List<File> findFilesByTaskId(int taskId) {
+//        List<File> files = new ArrayList<>();
+//        try {
+//            PreparedStatement statement = dbConnection.prepareStatement("select * from files where task_id = ?");
+//            statement.setInt(1, taskId);
+//            ResultSet results = statement.executeQuery();
+//            results.next();
+//
+//            while (results.next()) {
+//                files.add(
+//                        new File(results.getInt(1),
+//                                results.getInt(2),
+//                                results.getString(3),
+//                        results.getString(4)
+//                ));
+//                }
+//            } catch (SQLException e) {
+//            e.printStackTrace(System.err);
+//        }
+//        return files;
+//    }
     public List<Task> findAll() {
         List<Task> tasks = new ArrayList<>();
         try {
-            Statement statement = dbConnection.createStatement();
-            ResultSet results = statement.executeQuery("select * from tasks");
+            Statement statement1 = dbConnection.createStatement();
+            ResultSet results = statement1.executeQuery("select * from tasks");
             while (results.next()) {
+                int taskId=results.getInt(1);
+                List<File> files= findFilesByTaskId(taskId);
                 GregorianCalendar date1= new GregorianCalendar();
                 java.util.Date myDate1= new java.util.Date(results.getDate(3).getTime());
                 date1.setTime(myDate1);
@@ -193,13 +225,17 @@ public class TaskService {
                 java.util.Date myDate2= new java.util.Date(results.getDate(4).getTime());
                 date2.setTime(myDate2);
 
+
                 tasks.add(
-                        new Task(results.getInt(1),
+                        new Task(taskId,
                                 results.getString(2),
                                 date1,
                                 date2,
                                 Priority.valueOf(results.getString(5)),
-                                Status.valueOf(results.getString(6).replace(" ","_"))));
+                                Status.valueOf(results.getString(6).replace(" ","_")),
+                                files
+                                )
+                );
             }
         } catch (SQLException e) {
             e.printStackTrace(System.err);
