@@ -17,17 +17,24 @@ public class TaskService {
         this.dbConnection = dbConnection;
     }
 
-    public void createTask(Task task){
-        String command = "insert into tasks values (?, ?, ?, ?, ?, ?)";
+    public void createTask(Task task, int userTaskRelationId, String username){
+        String command1 = "insert into tasks values (?, ?, ?, ?, ?, ?)";
+        String command2 = "insert into user_task_relation values (?, ?, ?)";
         try {
-            PreparedStatement preparedStatement = this.dbConnection.prepareStatement(command);
-            preparedStatement.setInt(1,task.getId());
-            preparedStatement.setString(2, task.getDescription());
-            preparedStatement.setDate(3, new Date(task.getInitialDate().getTimeInMillis()));
-            preparedStatement.setDate(4,  new Date(task.getDueDate().getTimeInMillis()));
-            preparedStatement.setString(5, task.getPriority());
-            preparedStatement.setString(6,task.getStatus());
-            preparedStatement.executeUpdate();
+            PreparedStatement preparedStatement1 = this.dbConnection.prepareStatement(command1);
+            preparedStatement1.setInt(1,task.getId());
+            preparedStatement1.setString(2, task.getDescription());
+            preparedStatement1.setDate(3, new Date(task.getInitialDate().getTimeInMillis()));
+            preparedStatement1.setDate(4,  new Date(task.getDueDate().getTimeInMillis()));
+            preparedStatement1.setString(5, task.getPriority());
+            preparedStatement1.setString(6,task.getStatus());
+            preparedStatement1.executeUpdate();
+
+            PreparedStatement preparedStatement2 = this.dbConnection.prepareStatement(command2);
+            preparedStatement2.setInt(1, userTaskRelationId);
+            preparedStatement2.setString(2, username);
+            preparedStatement2.setInt(3, task.getId());
+            preparedStatement2.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -35,7 +42,7 @@ public class TaskService {
 //*********************************
 
 
-    public void createTaskFile(File file){//(int id, int taskId, String name, String path)
+    public void createTaskFile(File file){
         String command = "insert into files values (?, ?, ?, ?)";
         try {
             PreparedStatement preparedStatement = this.dbConnection.prepareStatement(command);
@@ -49,10 +56,26 @@ public class TaskService {
         }
     }
 
+    public int userTaskRelationNextId() {
+        int nextIndex=1;
+        try {
+            Statement statement = this.dbConnection.createStatement();
+            ResultSet results = statement.executeQuery("select user_task_relation.id\n" +
+                    "from user_task_relation\n" +
+                    "order by id desc\n" +
+                    "limit 1");
+            results.next();
+            nextIndex=  results.getInt(1)+1;
+
+        } catch (SQLException e) {
+            e.printStackTrace(System.err);
+        }
+        return nextIndex;
+    }
     public int fileNextId() {
         int nextIndex=1;
         try {
-            Statement statement = dbConnection.createStatement();
+            Statement statement = this.dbConnection.createStatement();
             ResultSet results = statement.executeQuery("select files.id\n" +
                     "from files\n" +
                     "order by id desc\n" +
@@ -66,11 +89,10 @@ public class TaskService {
         return nextIndex;
     }
 
-    //***************************************
     public int taskNextId() {
         int nextIndex=1;
         try {
-            Statement statement = dbConnection.createStatement();
+            Statement statement = this.dbConnection.createStatement();
             ResultSet results = statement.executeQuery("select tasks.id\n" +
                     "from tasks\n" +
                     "order by id desc\n" +
@@ -88,7 +110,7 @@ public class TaskService {
         Task task=null;
         List<File> files =  findFilesByTaskId(id);;
         try {
-            PreparedStatement statement1 = dbConnection.prepareStatement("select * from tasks where id = ?");
+            PreparedStatement statement1 = this.dbConnection.prepareStatement("select * from tasks where id = ?");
             statement1.setInt(1, id);
             ResultSet result = statement1.executeQuery();
             result.next();
@@ -116,10 +138,10 @@ public class TaskService {
         return task;
     }
 
-    private List<File> findFilesByTaskId(int id) {
+    public List<File> findFilesByTaskId(int id) {
         List<File> files = new ArrayList<>();
         try {
-            PreparedStatement statement2 = dbConnection.prepareStatement("select * from files where task_id = ?");
+            PreparedStatement statement2 = this.dbConnection.prepareStatement("select * from files where task_id = ?");
             statement2.setInt(1, id);
             ResultSet results = statement2.executeQuery();
 
@@ -138,25 +160,25 @@ public class TaskService {
     }
 
 
-//    public File findFileById(int id) {
-//        File file=null;
-//        try {
-//            PreparedStatement statement = dbConnection.prepareStatement("select * from files where id = ?");
-//            statement.setInt(1, id);
-//            ResultSet result = statement.executeQuery();
-//            result.next();
-//
-//
-//            file=  new File(result.getInt(1),
-//                    result.getInt(2),
-//                    result.getString(3),
-//                    result.getString(4)
-//                   );
-//        } catch (SQLException e) {
-//            e.printStackTrace(System.err);
-//        }
-//        return file;
-//    }
+    public File findFileById(int id) {
+        File file=null;
+        try {
+            PreparedStatement statement = this.dbConnection.prepareStatement("select * from files where id = ?");
+            statement.setInt(1, id);
+            ResultSet result = statement.executeQuery();
+            result.next();
+
+
+            file=  new File(result.getInt(1),
+                    result.getInt(2),
+                    result.getString(3),
+                    result.getString(4)
+                   );
+        } catch (SQLException e) {
+            e.printStackTrace(System.err);
+        }
+        return file;
+    }
 
 
 
@@ -178,42 +200,34 @@ public class TaskService {
     }
 
     public void delete(int id) {
-        String insertCommand = "delete from tasks where id= ?";
+        String insertCommand1 = "delete from files where task_id= ?";
+        String insertCommand2 = "delete from tasks where id= ?";
         try {
-            PreparedStatement preparedStatement = this.dbConnection.prepareStatement(insertCommand);
-            preparedStatement.setInt(1,id);
-            preparedStatement.executeUpdate();
+            PreparedStatement preparedStatement1 = this.dbConnection.prepareStatement(insertCommand1);
+            preparedStatement1.setInt(1,id);
+            preparedStatement1.executeUpdate();
+
+            PreparedStatement preparedStatement2 = this.dbConnection.prepareStatement(insertCommand2);
+            preparedStatement2.setInt(1,id);
+            preparedStatement2.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
- //   public List<File> findFilesByTaskId(int taskId) {
-//        List<File> files = new ArrayList<>();
-//        try {
-//            PreparedStatement statement = dbConnection.prepareStatement("select * from files where task_id = ?");
-//            statement.setInt(1, taskId);
-//            ResultSet results = statement.executeQuery();
-//            results.next();
-//
-//            while (results.next()) {
-//                files.add(
-//                        new File(results.getInt(1),
-//                                results.getInt(2),
-//                                results.getString(3),
-//                        results.getString(4)
-//                ));
-//                }
-//            } catch (SQLException e) {
-//            e.printStackTrace(System.err);
-//        }
-//        return files;
-//    }
-    public List<Task> findAll() {
+    public List<Task> findAll(String username) {
         List<Task> tasks = new ArrayList<>();
+        String insertCommand ="SELECT * FROM tasks\n" +
+                "JOIN user_task_relation\n" +
+                "ON tasks.id = user_task_relation.task_id\n" +
+                "JOIN users\n" +
+                "ON users.username= user_task_relation.username\n" +
+                "WHERE user_task_relation.username= ?";
         try {
-            Statement statement1 = dbConnection.createStatement();
-            ResultSet results = statement1.executeQuery("select * from tasks");
+            PreparedStatement statement = this.dbConnection.prepareStatement(insertCommand);
+            statement.setString(1, username);
+            ResultSet results = statement.executeQuery();
+
             while (results.next()) {
                 int taskId=results.getInt(1);
                 List<File> files= findFilesByTaskId(taskId);

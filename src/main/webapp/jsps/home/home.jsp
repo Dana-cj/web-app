@@ -22,10 +22,10 @@
             <td><c:out value = "${task.priority}"/></td>
             <td><c:out value = "${task.status}"/></td>
             <td>
-                <a href="/final-project/tasks?action=edit&taskId=<c:out value = "${task.id}"/>">
+                <a href="<c:out value="${pageContext.request.contextPath}"/>/tasks?action=edit&taskId=<c:out value = "${task.id}"/>">
                  Edit <span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>
                 </a>
-                <a href="/final-project/tasks?action=delete&taskId=<c:out value = "${task.id}"/>">
+                <a href="<c:out value="${pageContext.request.contextPath}"/>/tasks?action=delete&taskId=<c:out value = "${task.id}"/>">
                  Delete <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
                 </a>
             </td>

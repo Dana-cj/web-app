@@ -6,8 +6,9 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import ro.exampledana.entity.Doable;
-import ro.exampledana.service.DoableService;
+import jakarta.servlet.http.HttpSession;
+import ro.exampledana.entity.Task;
+import ro.exampledana.service.TaskService;
 
 import javax.naming.Context;
 import javax.naming.InitialContext;
@@ -16,14 +17,15 @@ import javax.sql.DataSource;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @WebServlet(urlPatterns = {"/history"})
 public class HistoryServlet extends HttpServlet {
     private Connection dbConnection;
-    public DoableService doableService;
-   // public static String browserLanguage;
+    public TaskService taskService;
+    private String username;
 
     @Override
     public void init(ServletConfig config) {
@@ -32,7 +34,7 @@ public class HistoryServlet extends HttpServlet {
             Context envContext = (Context) initialContext.lookup("java:/comp/env");
             DataSource ds = (DataSource) envContext.lookup("jdbc/MyDB");
             dbConnection = ds.getConnection();
-            doableService= new DoableService(dbConnection);
+            taskService= new TaskService(dbConnection);
         } catch (NamingException | SQLException e) {
             throw new RuntimeException(e);
         }
@@ -41,82 +43,63 @@ public class HistoryServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
        //set tasks active
         request.setAttribute("historyActive", "active");
-        listHistory(request, response);
-        // set the date format according to browser language
-//        String acceptLanguageHeader = request.getHeader("Accept-Language");
-//        if (acceptLanguageHeader != null && !acceptLanguageHeader.isEmpty()) {
-//            String[] languages = acceptLanguageHeader.split(",");
-//            if (languages.length > 0) {
-//                browserLanguage = languages[0].trim();
-//            }
-//        }
+        //retrieve username
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            username = (String) session.getAttribute("username");
+        } else {
+            response.sendRedirect(request.getContextPath() + "/login");
+        }
         //read action and fulfill request
-//        String action = readActionParameter(request);
-//        switch (action){
-//            case "list"-> {
-//                request.setAttribute("dueDateSortingActive", "active");
-//                listTasksSortedByDueDate(request, response);
-//            }
-//            case "listTasksSortedByPriority"-> {
-//                request.setAttribute("prioritySortingActive", "active");
-//                listTasksSortedByPriority(request, response);
-//            }
-//            case "listTasksSortedByStatus"-> {
-//                request.setAttribute("statusSortingActive", "active");
-//                listTasksSortedByStatus(request, response);
-//            }
-//        }
-//    }
-//    @Override
-//    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-//        String action = readActionParameter(request);
-//        switch (action){
-//           case "add"-> {
-//               String description = request.getParameter("description");
-//               String dueDateAsString= request.getParameter("dueDate");
-//               SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-//               GregorianCalendar dueDate= new GregorianCalendar();
-//               try {
-//                   java.util.Date date= new java.util.Date(formatter.parse(dueDateAsString).getTime());
-//                   dueDate.setTime(date);
-//               } catch (ParseException e) {
-//                   throw new RuntimeException(e);
-//               }
-//               taskService.createTask(new Task(taskService.nextId(), description, dueDate, Priority.valueOf(request.getParameter("priority").replace(" ","_"))));
-//               listTasksSortedByDueDate(request, response);
-//           }
-//           case "edit"->{
-//               int id= Integer.parseInt(request.getParameter("taskId"));
-//               String description = request.getParameter("description");
-//               String dueDateAsString= request.getParameter("dueDate");
-//               SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-//               GregorianCalendar dueDate= new GregorianCalendar();
-//               try {
-//                   java.util.Date date= new java.util.Date(formatter.parse(dueDateAsString).getTime());
-//                   dueDate.setTime(date);
-//               } catch (ParseException e) {
-//                   throw new RuntimeException(e);
-//               }
-//               String priorityAsString= request.getParameter("priority");
-//               String statusAsString= request.getParameter("status");
-//               taskService.updateTask(id,description, dueDate, Priority.valueOf(priorityAsString.replace(" ","_")),
-//                       Status.valueOf(statusAsString.replace(" ","_")));
-//               listTasksSortedByDueDate(request, response);
-//           }
-//       }
+        String action = readActionParameter(request);
+        switch (action) {
+            case "list" -> {
+                request.setAttribute("dueDateSortingActive", "active");
+                listHistory(request, response);
+            }
+            case "listHistorySortedByPriority" -> {
+                request.setAttribute("prioritySortingActive", "active");
+                listHistorySortedByPriority(request, response);
+            }
+            case "delete"-> {
+                int id= Integer.parseInt(request.getParameter("taskId"));
+                taskService.delete(id);
+                request.setAttribute("dueDateSortingActive", "active");
+                listHistory(request, response);
+            }
+        }
     }
 
     private void listHistory(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
-        List<Doable> doableList= doableService.findAll().stream()
-                .filter(doable->doable.isHistory())
-                //.filter(doable->doable.isHistory())
-                //.map(doable -> doable.getDescription()+ "")
+        List<Task> tasks= taskService.findAll(username).stream()
+                .filter(task->task.isHistory())
+                .sorted(Comparator.comparing(Task::getDueDate)
+                        .thenComparing(Task::getPriorityValue)
+                        .thenComparing(Task::getInitialDate))
                 .collect(Collectors.toList());
-        request.setAttribute("doableList", doableList);
+        request.setAttribute("tasks", tasks);
         request.getRequestDispatcher("jsps/history/list.jsp").forward(request, response);
     }
 
+
+    private void listHistorySortedByPriority(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        List<Task> tasks= taskService.findAll(username)
+                .stream()
+                .filter(task->task.isHistory())
+                .sorted(Comparator.comparing(Task::getPriorityValue)
+                        .thenComparing(Task::getDueDate)
+                        .thenComparing(Task::getInitialDate))
+                .collect(Collectors.toList());
+        request.setAttribute("tasks", tasks);
+        request.getRequestDispatcher("jsps/history/list.jsp").forward(request, response);
+    }
+
+    private static String readActionParameter(HttpServletRequest request) {
+        String action= request.getParameter("action");
+        action= (action==null)? "list":action;
+        return action;
+    }
 //    private void listTasksSortedByDueDate(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 //        List<Task> tasks= taskService.findAll()
 //                .stream()

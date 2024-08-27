@@ -4,10 +4,7 @@ import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.Part;
+import jakarta.servlet.http.*;
 import ro.exampledana.entity.File;
 import ro.exampledana.entity.Priority;
 import ro.exampledana.entity.Status;
@@ -44,9 +41,9 @@ public class TasksServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private Connection dbConnection;
     public TaskService taskService;
-   // private FileService fileService;
     public static String browserLanguage;
     private static final String UPLOAD_PATH= "C:\\upload\\";
+    private String username;
 
     @Override
     public void init(ServletConfig config) {
@@ -56,15 +53,21 @@ public class TasksServlet extends HttpServlet {
             DataSource ds = (DataSource) envContext.lookup("jdbc/MyDB");
             dbConnection = ds.getConnection();
             taskService= new TaskService(dbConnection);
-           // fileService= new FileService(dbConnection);
         } catch (NamingException | SQLException e) {
             throw new RuntimeException(e);
         }
     }
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-       //set tasks active
+        //set tasks active
         request.setAttribute("tasksActive", "active");
+        //retrieve username
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            username = (String) session.getAttribute("username");
+        } else {
+            response.sendRedirect(request.getContextPath() + "/login");
+        }
         // set the date format according to browser language
         String acceptLanguageHeader = request.getHeader("Accept-Language");
         if (acceptLanguageHeader != null && !acceptLanguageHeader.isEmpty()) {
@@ -76,7 +79,7 @@ public class TasksServlet extends HttpServlet {
         //read action and fulfill request
         String action = readActionParameter(request);
         switch (action){
-            case "home"-> request.getRequestDispatcher("jsps/home.jsp").forward(request,response);
+            //case "home"->response.getWriter().println("Username: "+username);//request.getRequestDispatcher("jsps/home.jsp").forward(request,response);
             case "list"-> {
                 request.setAttribute("dueDateSortingActive", "active");
                 listTasksSortedByDueDate(request, response);
@@ -90,45 +93,34 @@ public class TasksServlet extends HttpServlet {
                 listTasksSortedByStatus(request, response);
             }
             case "add"->    request.getRequestDispatcher("jsps/task/add.jsp").forward(request,response);
-//            case "addFile"->    {
-//                int id= Integer.parseInt(request.getParameter("taskId"));
-//                Task task= taskService.findById(id);
-//                request.setAttribute("task", task);
-//                request.getRequestDispatcher("jsps/task/addFile.jsp").forward(request,response);
-//            }
             case "edit"-> {
                 int id= Integer.parseInt(request.getParameter("taskId"));
-                Task task= taskService.findTaskById(id);
+                Task task= taskService.findTaskById(id);//*****
                 request.setAttribute("task", task);
                 request.getRequestDispatcher("jsps/task/edit.jsp").forward(request,response);
             }
+            case "editFiles"-> {
+                int id= Integer.parseInt(request.getParameter("taskId"));
+                Task task= taskService.findTaskById(id);
+                request.setAttribute("task", task);
+                request.getRequestDispatcher("jsps/task/editFiles.jsp").forward(request,response);
+            }
             case "delete"-> {
                 int id= Integer.parseInt(request.getParameter("taskId"));
-                taskService.delete(id);
+                taskService.delete(id);//******
                 request.setAttribute("dueDateSortingActive", "active");
                 listTasksSortedByDueDate(request, response);
             }
             case "download"-> {
                 String fileName = request.getParameter("fileName");
-                //response.getWriter().print(fileName);
-
-                // Get the file name from the request
-//                String fileName = request.getParameter("fileName");
-//                if (fileName == null || fileName.isEmpty()) {
-//                    response.getWriter().print("File name is empty");
-//                    return;
-//                }
-
                 // Get the upload directory path
                 String filePath = UPLOAD_PATH + fileName;
                 java.io.File downloadFile = new java.io.File(filePath);
-
                 // Check if file exists
                 if (!downloadFile.exists()) {
                     response.getWriter().print("File not found");
                     return;
                 }
-
                 // Set response content type
                 response.setContentType("application/octet-stream");
                 response.setContentLength((int) downloadFile.length());
@@ -138,7 +130,6 @@ public class TasksServlet extends HttpServlet {
                 try (FileInputStream inStream = new FileInputStream(downloadFile)) {
                     byte[] buffer = new byte[4096];
                     int bytesRead = -1;
-
                     while ((bytesRead = inStream.read(buffer)) != -1) {
                         response.getOutputStream().write(buffer, 0, bytesRead);
                     }
@@ -153,9 +144,7 @@ public class TasksServlet extends HttpServlet {
         String action = readActionParameter(request);
         switch (action){
             case "add"-> {
-
                 String description = request.getParameter("description");
-
                 String dueDateAsString = request.getParameter("dueDate");
                 GregorianCalendar dueDate = null;
                 if (dueDateAsString.isBlank()) {
@@ -170,7 +159,6 @@ public class TasksServlet extends HttpServlet {
                         exceptionHandler(response);
                     }
                 }
-
                 Priority priority = null;
                 try {
                     priority = Priority.valueOf(request.getParameter("priority").replace(" ", "_"));
@@ -178,7 +166,7 @@ public class TasksServlet extends HttpServlet {
                     exceptionHandler(response);
                 }
                 int taskId= taskService.taskNextId();
-                taskService.createTask(new Task(taskId, description, dueDate, priority));
+                taskService.createTask(new Task(taskId, description, dueDate, priority), taskService.userTaskRelationNextId(), username);//*************************
 
                 List<Part> fileParts = request.getParts().stream().filter(part -> "files".equals(part.getName()) && part.getSize() > 0).collect(Collectors.toList());
                 try {
@@ -189,56 +177,15 @@ public class TasksServlet extends HttpServlet {
                         filePart.write(filePath);
 
                         taskService.createTaskFile(new File(fileId,taskId, fileName, filePath));
-                        //taskService.findTaskById(taskId).addFiles(taskService.findFileById(fileId));
+                        taskService.findTaskById(taskId).addFiles(taskService.findFileById(fileId));
                     }
                    //response.getWriter().print(taskService.findTaskById(taskId).getFiles().get(0).getName());
                 } catch (Exception exception) {
                     response.getWriter().print(exception);
                 }
-
                 request.setAttribute("dueDateSortingActive", "active");
                 listTasksSortedByDueDate(request, response);
             }
-//           case "add"-> {
-//               String description = request.getParameter("description");
-//
-//               String dueDateAsString= request.getParameter("dueDate");
-//               GregorianCalendar dueDate= null;
-//               if(dueDateAsString.isBlank()){
-//                   exceptionHandler(response);
-//               } else {
-//               SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-//                dueDate = new GregorianCalendar();
-//                   try {
-//                       java.util.Date date = new java.util.Date(formatter.parse(dueDateAsString).getTime());
-//                       dueDate.setTime(date);
-//                   } catch (ParseException e) {
-//                       exceptionHandler(response);
-//                 }
-//               }
-//               Priority priority=null;
-//               try {
-//                   priority = Priority.valueOf(request.getParameter("priority").replace(" ","_"));
-//               } catch (Exception e) {
-//                   exceptionHandler(response);
-//               }
-//
-//               try {
-//                   List<Part> fileParts = request.getParts().stream().filter(part -> "files".equals(part.getName()) && part.getSize() > 0).collect(Collectors.toList());
-//
-//                   for (Part filePart : fileParts) {
-//                       String fileName = Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
-//                       filePart.write("C:\\upload\\" + fileName);
-//                   }
-//                   response.getWriter().print("Files uploaded sucessfully.");
-//               } catch (Exception exception){
-//                   response.getWriter().print(exception);
-//               }
-//
-//               taskService.createTask(new Task(taskService.nextId(), description, dueDate, priority));
-//               request.setAttribute("dueDateSortingActive", "active");
-//               listTasksSortedByDueDate(request, response);
-//           }
            case "edit"->{
                int id= Integer.parseInt(request.getParameter("taskId"));
                String description = request.getParameter("description");
@@ -258,12 +205,29 @@ public class TasksServlet extends HttpServlet {
                request.setAttribute("dueDateSortingActive", "active");
                listTasksSortedByDueDate(request, response);
            }
+            case "editFiles"->{
+                int taskId= Integer.parseInt(request.getParameter("taskId"));
+                List<Part> fileParts = request.getParts().stream().filter(part -> "files".equals(part.getName()) && part.getSize() > 0).collect(Collectors.toList());
+                try {
+                    for (Part filePart : fileParts) {
+                        int fileId= taskService.fileNextId();
+                        String fileName = "(id="+fileId+")"+Paths.get(filePart.getSubmittedFileName()).getFileName().toString();
+                        String filePath = UPLOAD_PATH + fileName;
+                        filePart.write(filePath);
+
+                        taskService.createTaskFile(new File(fileId,taskId, fileName, filePath));
+                    }
+                } catch (Exception exception) {
+                    response.getWriter().print(exception);
+                }
+                request.setAttribute("dueDateSortingActive", "active");
+                listTasksSortedByDueDate(request, response);
+            }
        }
     }
 
-
     private void listTasksSortedByDueDate(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        List<Task> tasks= taskService.findAll()
+        List<Task> tasks= taskService.findAll(username)
                 .stream()
                 .filter(task->!task.getStatus().equalsIgnoreCase("DONE"))
                 .sorted(Comparator.comparing(Task::getDueDate)
@@ -275,7 +239,7 @@ public class TasksServlet extends HttpServlet {
     }
 
     private void listTasksSortedByPriority(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        List<Task> tasks= taskService.findAll()
+        List<Task> tasks= taskService.findAll(username)
                 .stream()
                 .filter(task->!task.getStatus().equalsIgnoreCase("DONE"))
                 //.filter(task->!task.isHistory())
@@ -288,7 +252,7 @@ public class TasksServlet extends HttpServlet {
     }
 
     private void listTasksSortedByStatus(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        List<Task> tasks= taskService.findAll()
+        List<Task> tasks= taskService.findAll(username)
                 .stream()
                 .filter(task->!task.getStatus().equalsIgnoreCase("DONE"))
                 //.filter(task-> !task.isHistory())
@@ -317,7 +281,7 @@ public class TasksServlet extends HttpServlet {
                 "    <body>\n" +
                 "        <h2>Invalid value! Try again!</h2>\n" +
                 "        <a href=\"/new-web-app/tasks?action=list\">\n" +
-                "             <button type=\"button\" class=\"btn btn-primary btn-sm\">Go back to tasks page</button>\n" +
+                "             <h3>Go back to list page</h3>\n" +
                 "        </a>\n" +
                 "    </body>\n" +
                 "</html>");

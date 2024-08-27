@@ -5,10 +5,7 @@ import ro.exampledana.servlet.TasksServlet;
 import java.sql.Date;
 import java.text.DateFormat;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.GregorianCalendar;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public class Task extends Doable{
     private int id;
@@ -95,6 +92,11 @@ public class Task extends Doable{
         List<File> copy= new ArrayList<>();
         copy.addAll(files);
         return copy;
+    }
+
+    public boolean getIsOverdue(){
+        GregorianCalendar day= (GregorianCalendar) GregorianCalendar.getInstance();
+        return (dueDate.before(day)||dueDate.equals(day));
     }
 
     @Override
