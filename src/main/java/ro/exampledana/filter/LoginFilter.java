@@ -16,7 +16,6 @@ public class LoginFilter implements Filter {
             HttpServletResponse response = (HttpServletResponse) servletResponse;
             if (request.getSession().getAttribute("username") != null) {
                 filterChain.doFilter(request, response);
-
             } else {
                 response.sendRedirect(request.getContextPath() + "/login");
             }

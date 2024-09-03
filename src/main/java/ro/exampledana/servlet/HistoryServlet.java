@@ -63,7 +63,7 @@ public class HistoryServlet extends HttpServlet {
             }
             case "delete"-> {
                 int id= Integer.parseInt(request.getParameter("taskId"));
-                taskService.delete(id);
+                taskService.deleteTask(id);
                 request.setAttribute("dueDateSortingActive", "active");
                 listHistory(request, response);
             }
@@ -72,7 +72,7 @@ public class HistoryServlet extends HttpServlet {
 
     private void listHistory(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 
-        List<Task> tasks= taskService.findAll(username).stream()
+        List<Task> tasks= taskService.findAllTasksOfUser(username).stream()
                 .filter(task->task.isHistory())
                 .sorted(Comparator.comparing(Task::getDueDate)
                         .thenComparing(Task::getPriorityValue)
@@ -84,7 +84,7 @@ public class HistoryServlet extends HttpServlet {
 
 
     private void listHistorySortedByPriority(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        List<Task> tasks= taskService.findAll(username)
+        List<Task> tasks= taskService.findAllTasksOfUser(username)
                 .stream()
                 .filter(task->task.isHistory())
                 .sorted(Comparator.comparing(Task::getPriorityValue)

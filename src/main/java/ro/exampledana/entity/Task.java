@@ -14,10 +14,11 @@ public class Task extends Doable{
     private GregorianCalendar dueDate;
     private Priority priority;
     private Status status;
+    private String project;
     private List<File> files;
 
     public Task(int id, String description, GregorianCalendar initialDate, GregorianCalendar dueDate, Priority priority,
-                Status status, List<File> files) {
+                Status status, String project, List<File> files) {
 //        this.id = id;
 //        this.description = description;
         super(id, description, status);
@@ -25,11 +26,12 @@ public class Task extends Doable{
         this.dueDate = dueDate;
         this.priority=priority;
 //        this.status=status;
+        this.project=project;
         this.files= new ArrayList<>();
         this.files.addAll(files);
     }
     public Task(int id, String description, GregorianCalendar initialDate, GregorianCalendar dueDate, Priority priority,
-                Status status) {
+                Status status, String project) {
 //        this.id = id;
 //        this.description = description;
         super(id, description, status);
@@ -37,15 +39,16 @@ public class Task extends Doable{
         this.dueDate = dueDate;
         this.priority=priority;
 //        this.status=status;
+        this.project= project;
         this.files= new ArrayList<>();
     }
-    public Task(int id, String description, GregorianCalendar dueDate, Priority priority) {
-        this(id, description,(GregorianCalendar) GregorianCalendar.getInstance(), dueDate, priority, Status.TO_DO);
+    public Task(int id, String description, GregorianCalendar dueDate, Priority priority, String project) {
+        this(id, description,(GregorianCalendar) GregorianCalendar.getInstance(), dueDate, priority, Status.TO_DO, project);
     }
 
 
     public void addFiles(File file){
-        this.files.add(new File(file.getId(), file.getTaskId(), file.getName(),file.getPath()));
+        files.add(new File(file.getId(), file.getTaskId(), file.getName(),file.getPath()));
     }
 //    public int getId() {
 //        return super.id;
@@ -92,6 +95,10 @@ public class Task extends Doable{
         List<File> copy= new ArrayList<>();
         copy.addAll(files);
         return copy;
+    }
+
+    public String getProject() {
+        return project;
     }
 
     public boolean getIsOverdue(){

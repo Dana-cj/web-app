@@ -17,8 +17,13 @@ public class User {
     public String getUsername() {
         return username;
     }
-
     public String getPassword() {
         return password;
     }
+    public List<Task> getTasks(){
+        List<Task> copy= new ArrayList<>();
+        copy.addAll(tasks);
+        return copy;
+    }
+
 }

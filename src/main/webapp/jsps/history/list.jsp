@@ -16,6 +16,7 @@
 
     <table class= "table table-striped">
         <tr>
+            <th>Project</th>
             <th>Task description</th>
             <th>Initial Date</th>
             <th>Due Date</th>
@@ -23,11 +24,11 @@
             <th>Status</th>
             <th>Files</th>
             <th></th>
-
         </tr>
 
         <c:forEach items="${requestScope.tasks}" var="task">
         <tr>
+            <td><c:out value = "${task.project}"/></td>
             <td><c:out value = "${task.description}"/></td>
             <td><c:out value = "${task.formattedInitialDate}"/></td>
             <td><c:out value = "${task.formattedDueDate}"/></td>

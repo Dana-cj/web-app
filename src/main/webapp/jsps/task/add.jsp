@@ -4,6 +4,11 @@
   <form method="post" action="tasks?action=add" enctype="multipart/form-data">
 
       <div class="form-group mt-5">
+         <label for="project">Project: </label>
+         <input type="text" class="form-control" id="project" name="project" placeholder="Project name" >
+      </div>
+
+      <div class="form-group mt-5">
         <label for="description">Description: </label>
         <input type="text" class="form-control" id="description" name="description" placeholder="Do ...." required>
       </div>

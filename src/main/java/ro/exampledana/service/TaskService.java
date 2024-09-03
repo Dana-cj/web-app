@@ -18,7 +18,7 @@ public class TaskService {
     }
 
     public void createTask(Task task, int userTaskRelationId, String username){
-        String command1 = "insert into tasks values (?, ?, ?, ?, ?, ?)";
+        String command1 = "insert into tasks values (?, ?, ?, ?, ?, ?, ?)";
         String command2 = "insert into user_task_relation values (?, ?, ?)";
         try {
             PreparedStatement preparedStatement1 = this.dbConnection.prepareStatement(command1);
@@ -28,6 +28,7 @@ public class TaskService {
             preparedStatement1.setDate(4,  new Date(task.getDueDate().getTimeInMillis()));
             preparedStatement1.setString(5, task.getPriority());
             preparedStatement1.setString(6,task.getStatus());
+            preparedStatement1.setString(7,task.getProject());
             preparedStatement1.executeUpdate();
 
             PreparedStatement preparedStatement2 = this.dbConnection.prepareStatement(command2);
@@ -118,20 +119,17 @@ public class TaskService {
             GregorianCalendar date1= new GregorianCalendar();
             java.util.Date myDate1= new java.util.Date(result.getDate(3).getTime());
             date1.setTime(myDate1);
-
             GregorianCalendar date2= new GregorianCalendar();
             java.util.Date myDate2= new java.util.Date(result.getDate(4).getTime());
             date2.setTime(myDate2);
-
-
             task=  new Task(result.getInt(1),
                             result.getString(2),
                             date1,
                             date2,
-                    Priority.valueOf(result.getString(5)),
-                    Status.valueOf(result.getString(6).replace(" ","_")),
-                    files
-            );
+                            Priority.valueOf(result.getString(5)),
+                            Status.valueOf(result.getString(6).replace(" ","_")),
+                            result.getString(7),
+                            files);
         } catch (SQLException e) {
             e.printStackTrace(System.err);
         }
@@ -182,9 +180,9 @@ public class TaskService {
 
 
 
-    public void updateTask(int id, String description, GregorianCalendar dueDate, Priority priority, Status status) {
+    public void updateTask(int id, String description, GregorianCalendar dueDate, Priority priority, Status status, String project) {
        // String priorityAsString= priority.toString();
-        String insertCommand = "update tasks set description = ?, due_date = ?, priority = ?, status = ?  where id = ?";
+        String insertCommand = "update tasks set description = ?, due_date = ?, priority = ?, status = ?, project = ?  where id = ?";
         try {
             PreparedStatement preparedStatement = this.dbConnection.prepareStatement(insertCommand);
             preparedStatement.setString(1, description);
@@ -192,20 +190,26 @@ public class TaskService {
             preparedStatement.setDate(2,  new Date(dueDate.getTimeInMillis()));
             preparedStatement.setString(3, priority.toString());
             preparedStatement.setString(4, status.toString());
-            preparedStatement.setInt(5, id);
+            preparedStatement.setString(5, project);
+            preparedStatement.setInt(6, id);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void delete(int id) {
+    public void deleteTask(int id) {
         String insertCommand1 = "delete from files where task_id= ?";
+        String insertCommand= "delete from user_task_relation where task_id= ?";
         String insertCommand2 = "delete from tasks where id= ?";
         try {
             PreparedStatement preparedStatement1 = this.dbConnection.prepareStatement(insertCommand1);
             preparedStatement1.setInt(1,id);
             preparedStatement1.executeUpdate();
+
+            PreparedStatement preparedStatement = this.dbConnection.prepareStatement(insertCommand);
+            preparedStatement.setInt(1,id);
+            preparedStatement.executeUpdate();
 
             PreparedStatement preparedStatement2 = this.dbConnection.prepareStatement(insertCommand2);
             preparedStatement2.setInt(1,id);
@@ -215,7 +219,17 @@ public class TaskService {
         }
     }
 
-    public List<Task> findAll(String username) {
+    public void deleteFile(int fileId){
+        String insertCommand1 = "delete from files where id= ?";
+        try {
+            PreparedStatement preparedStatement1 = this.dbConnection.prepareStatement(insertCommand1);
+            preparedStatement1.setInt(1,fileId);
+            preparedStatement1.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    public List<Task> findAllTasksOfUser(String username) {
         List<Task> tasks = new ArrayList<>();
         String insertCommand ="SELECT * FROM tasks\n" +
                 "JOIN user_task_relation\n" +
@@ -247,6 +261,7 @@ public class TaskService {
                                 date2,
                                 Priority.valueOf(results.getString(5)),
                                 Status.valueOf(results.getString(6).replace(" ","_")),
+                                results.getString(7),
                                 files
                                 )
                 );
@@ -255,5 +270,31 @@ public class TaskService {
             e.printStackTrace(System.err);
         }
         return tasks;
+    }
+
+
+    public List<String> findAllProjectsOfUser(String username) {
+        List<String> projects = new ArrayList<>();
+        String insertCommand ="SELECT tasks.project FROM tasks\n" +
+                "JOIN user_task_relation\n" +
+                "ON tasks.id = user_task_relation.task_id\n" +
+                "JOIN users\n" +
+                "ON users.username= user_task_relation.username\n" +
+                "WHERE user_task_relation.username= ?";
+        try {
+            PreparedStatement statement = this.dbConnection.prepareStatement(insertCommand);
+            statement.setString(1, username);
+            ResultSet results = statement.executeQuery();
+
+            while (results.next()) {
+                String projectName= results.getString(1);
+                if(projectName!=null&&!projects.contains(projectName)){
+                    projects.add(projectName);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace(System.err);
+        }
+        return projects;
     }
 }

@@ -2,6 +2,10 @@
 <%@ include file="../shared/nav.jsp" %>
 <div class="container fluid mt-5">
     <form method="post">
+       <div class="form-group mt-5">
+        <label for="project">Project: </label>
+        <input type="text" class="form-control" id="project" name="project" value="<c:out value= "${requestScope.task.project}"/>">
+      </div>
 
       <div class="form-group mt-5">
         <label for="description">Description: </label>

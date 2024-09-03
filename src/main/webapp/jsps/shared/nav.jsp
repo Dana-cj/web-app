@@ -1,9 +1,4 @@
-<div class="container fluid mt-5">
-    <nav class="nav justify-content-end">
-                <a href="<c:out value="${pageContext.request.contextPath}"/>/logout">
-                    <button type="button" class="btn btn-outline-primary">Logout</button>
-                </a>
-    </nav>
+<div class="container fluid mt-1">
     <nav class="nav nav-pills flex-column flex-sm-row">
         <a class="flex-sm-fill text-sm-center nav-link <c:out value="${requestScope.homeActive}"/>" aria-current="page" href="<c:out value="${pageContext.request.contextPath}"/>/home">
         Home
@@ -17,5 +12,10 @@
         <a class="flex-sm-fill text-sm-center nav-link <c:out value="${requestScope.historyActive}"/>" href="<c:out value="${pageContext.request.contextPath}"/>/history">
         History
         </a>
+         <div class="nav justify-content-end">
+                        <a href="<c:out value="${pageContext.request.contextPath}"/>/logout">
+                            <button type="button" class="btn btn-outline-primary">Logout</button>
+                        </a>
+         </div>
     </nav>
 </div>
